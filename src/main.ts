@@ -30,8 +30,6 @@ async function main(args: string[]): Promise<number> {
     0x40, // start line 0
     0x8D, // ← POMPE DE CHARGE (SSD1306)
     0x14,
-    // 0xAD, // ← DC-DC ON (SH1106)
-    // 0x8B,
     0xA1, // segment remap
     0xC8, // COM scan direction remap
     0xDA, // COM pins hardware config
