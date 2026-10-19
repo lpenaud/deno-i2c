@@ -66,7 +66,7 @@ export class LibcFile implements Disposable {
     this.#fd = fd;
   }
 
-  write(buffer: Uint8Array): Promise<number> {
+  write(buffer: Uint8Array): number {
     return this.#libc.write(this.#fd, buffer);
   }
 
@@ -124,7 +124,7 @@ export class Libc implements Disposable {
    * @returns A file descriptor
    * @see https://www.man7.org/linux/man-pages/man2/open.2.html
    */
-  open(path: string, accessMode: AccessMode, ...flags: number[]): LibcFile {
+  open(path: string, accessMode: AccessMode, ...flags: number[]): number {
     const fd = this.#libc.symbols.open(
       new TextEncoder().encode(path + "\0"),
       flags.reduce((pv, cv) => pv | cv, accessMode),
@@ -132,7 +132,7 @@ export class Libc implements Disposable {
     if (fd === -1) {
       throw new LibcError(this.#getError());
     }
-    return new LibcFile(this, fd);
+    return fd;
   }
 
   /**
@@ -156,8 +156,8 @@ export class Libc implements Disposable {
    * @returns The number of bytes written is returned
    * @see https://www.man7.org/linux/man-pages/man2/write.2.html
    */
-  async write(fd: number, buffer: Uint8Array): Promise<number> {
-    const result = await this.#libc.symbols.write(
+  write(fd: number, buffer: Uint8Array): number {
+    const result = this.#libc.symbols.write(
       fd,
       buffer,
       BigInt(buffer.byteLength),
