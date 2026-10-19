@@ -25,10 +25,15 @@ function main(args: string[]): number {
   confirm("Ça devrait être tout noir");
 
   checkedPattern(device, 0);
+  const even = device.saveState();
+  checkedPattern(device, 1);
+  const odd = device.saveState();
+
+  device.loadState(even);
   device.writeFrame();
   confirm("Damier pair");
-
-  checkedPattern(device, 1);
+  
+  device.loadState(odd);
   device.writeFrame();
   confirm("Damier impair");
 

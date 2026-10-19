@@ -136,6 +136,15 @@ export class Ssd1306Device implements Disposable {
     this.writeFrame();
   }
 
+  saveState(): Uint8Array {
+    return new Uint8Array(this.#frame.slice(1));
+  }
+
+  loadState(src: Uint8Array) {
+    const dest = new Uint8Array(this.#frame, 1);
+    dest.set(src);
+  }
+
   *#pages() {
     for (let i = 0; i < NB_PAGE; i++) {
       yield this.#getPage(i);
