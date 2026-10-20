@@ -1,19 +1,58 @@
 import { Color, Ssd1306Device } from "./ssd1306.ts";
 import { Libc } from "./libc.ts";
 
+function getStatePath(message: string): string {
+  const re = /^\w+$/;
+  let path: string | null;
+  do {
+    path = prompt(message);
+  } while (path === null || !re.test(path));
+  return path;
+}
+
+function getInt(name: string, min: number, max: number): number {
+  let value: string | null;
+  let nb: number;
+  for (;;) {
+    value = prompt(`${name}:`);
+    if (value === null) {
+      continue;
+    }
+    nb = parseInt(value);
+    if (!isNaN(nb) && nb >= min && nb < max) {
+      break;
+    }
+    console.log(`Expected ${name} between ${min} and ${max}`);
+  }
+  return nb;
+}
+
 function checkedPattern(device: Ssd1306Device, mod: 0 | 1) {
   let i = 0;
   for (const page of device.pages) {
-    const color = i % 2 === mod ? Color.WHITE : Color.BLACK;
+    const color = i % 2 === mod ? 1 : 0;
     page.fill(color);
     i++;
   }
 }
 
+function help() {
+  console.log("%cHELP", "font-weight: bold; color: blue;");
+  console.log("  quit   Quit and turn off the screen.");
+  console.log("  reset  Write black pixel everywhere.");
+  console.log("  state  Save current state.");
+  console.log("  load   Load a state.");
+  console.log("  help   Show this help.");
+  console.log("  set    Set a pixel.");
+}
+
 function main(args: string[]): number {
   const [path] = args;
-  if (path === undefined) {
-    console.error("Usage: %s DEVICE", import.meta.filename ?? import.meta.url);
+  if (args.length !== 1) {
+    console.error(
+      "Usage: %s DEVICE",
+      import.meta.filename ?? import.meta.url,
+    );
     return 1;
   }
   // On ouvre la libc
@@ -32,10 +71,70 @@ function main(args: string[]): number {
   device.loadState(even);
   device.writeFrame();
   confirm("Damier pair");
-  
+
   device.loadState(odd);
   device.writeFrame();
   confirm("Damier impair");
+
+  help();
+  mainloop:
+  for (;;) {
+    const input = prompt("#>");
+    switch (input) {
+      case "quit": {
+        break mainloop;
+      }
+
+      case "reset": {
+        device.resetFrame();
+        continue;
+      }
+
+      case "state": {
+        const outfile = getStatePath("outfile:");
+        const state = device.saveState();
+        Deno.writeFileSync(outfile, state);
+        console.log(outfile);
+        break;
+      }
+
+      case "load": {
+        const infile = getStatePath("infile:");
+        device.loadState(Deno.readFileSync(infile));
+        device.writeFrame();
+        console.log(infile);
+        break;
+      }
+
+      case "set": {
+        const position = getInt("position", device.min, device.max);
+        const color = getInt("color", Color.BLACK, Color.WHITE + 1);
+        device.set(position, color);
+        device.writeFrame();
+        console.log(position, color);
+        break;
+      }
+
+      case "help": {
+        help();
+        break;
+      }
+
+      case null: {
+        break;
+      }
+
+      default: {
+        console.log(
+          "%cERROR%c: Unknown command.",
+          "font-weight: bold; color: red;",
+          "font-weight: unset; color: unset;",
+        );
+        help();
+        break;
+      }
+    }
+  }
 
   device.shutdown();
   confirm("L'écran devrait être éteint");

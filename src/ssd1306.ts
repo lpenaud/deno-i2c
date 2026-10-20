@@ -33,8 +33,8 @@ const DISPLAY_ON = 0xAF;
 
 const ACTIVATION_BYTE = 0x40;
 
-const NB_PAGE = 8;
-const NB_COLUMN = 128;
+export const NB_PAGE = 8;
+export const NB_COLUMN = 128;
 
 const INIT = Uint8Array.of(
   COMMAND_MODE,
@@ -99,6 +99,14 @@ export class Ssd1306Device implements Disposable {
     return this.#pages();
   }
 
+  get min() {
+    return 0;
+  }
+
+  get max() {
+    return this.#frame.byteLength - 1;
+  }
+
   static fromPath(libc: Libc, path: string) {
     const fd = libc.open(path, AccessMode.O_RDWR);
     return new Ssd1306Device(fd, libc);
@@ -143,6 +151,21 @@ export class Ssd1306Device implements Disposable {
   loadState(src: Uint8Array) {
     const dest = new Uint8Array(this.#frame, 1);
     dest.set(src);
+  }
+
+  set(position: number, color: number): void {
+    if (color < Color.BLACK || color > Color.WHITE) {
+      throw new Error(
+        `Expected a color between ${Color.BLACK} and ${Color.WHITE}`,
+      );
+    }
+    if (position < this.min || position >= this.max) {
+      throw new Error(
+        `Expected a position between ${this.min} and ${this.max}`,
+      );
+    }
+    const view = new Uint8Array(this.#frame, 1);
+    view[position] = color;
   }
 
   *#pages() {
