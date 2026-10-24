@@ -1,6 +1,6 @@
 {
   "tasks": {
-    "compile": "deno compile --allow-read --allow-write --allow-ffi --target aarch64-unknown-linux-gnu --output dist/deno-i2c src/main.ts",
+    "compile": "deno compile --allow-net --allow-read --allow-write --allow-ffi --target aarch64-unknown-linux-gnu --output dist/deno-i2c src/main.ts",
     "clean": "rm -v dist/*"
   }
 }
