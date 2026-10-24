@@ -14,23 +14,6 @@ const I2C_ADDR = 0x3Cn;
 // SSD1306 specific
 
 const COMMAND_MODE = 0x00;
-const DISPLAY_OFF = 0xAE;
-const CLOCK_DIVIDE_RATIO = Uint8Array.of(0xD5, 0x80);
-//  1/64
-const MULTIPLEX_RATIO = Uint8Array.of(0xA8, 0x3F);
-const DISPLAY_OFFSET = Uint8Array.of(0xD3, 0x00);
-const START_LINE_0 = 0x40;
-const CHARGE_PUMP = Uint8Array.of(0x8D, 0x14);
-const SEGMENT_REMAP = 0xA1;
-const COM_SCAN_DIRECTION_REMAP = 0xC8;
-const COM_PINS_HARDWARE_CONFIG = Uint8Array.of(0xDA, 0x12);
-const CONTRAST = Uint8Array.of(0x7F, 0x5F);
-const PRE_CHARGE_PERIOD = Uint8Array.of(0xD9, 0x22);
-const VCHOMH_DESELECT_LEVEL = Uint8Array.of(0xDB, 0x40);
-const RAM_DISPLAY = 0xA4;
-const NOT_ROTATE = 0xA6;
-const DISPLAY_ON = 0xAF;
-
 const ACTIVATION_BYTE = 0x40;
 
 export const NB_PAGE = 8;
@@ -38,41 +21,31 @@ export const NB_COLUMN = 128;
 
 const INIT = Uint8Array.of(
   COMMAND_MODE,
-  DISPLAY_OFF,
-  ...CLOCK_DIVIDE_RATIO,
-  ...MULTIPLEX_RATIO,
-  ...DISPLAY_OFFSET,
-  START_LINE_0,
-  ...CHARGE_PUMP,
-  SEGMENT_REMAP,
-  COM_SCAN_DIRECTION_REMAP,
-  ...COM_PINS_HARDWARE_CONFIG,
-  ...CONTRAST,
-  ...PRE_CHARGE_PERIOD,
-  ...VCHOMH_DESELECT_LEVEL,
-  RAM_DISPLAY,
-  NOT_ROTATE,
-  DISPLAY_ON,
-);
-
-const HORIZONTAL_MODE = Uint8Array.of(
-  COMMAND_MODE,
-  // Set memory addressing mode
+  0xAE, // Display OFF
+  0xD5,
+  0x80,
+  0xA8,
+  0x3F,
+  0xD3,
+  0x00, // ← IMPORTANT : Offset = 0 (sinon décalage vertical)
+  0x40,
+  0x8D,
+  0x14,
   0x20,
-  // Horizontal
-  0x00,
-  // Set Column Address, from 0 to 127
-  0x21,
-  // Set start index column
-  0x00,
-  // Set end index column
+  0x00, // Horizontal mode
+  0xA0, // ← Colonne 0 = GAUCHE
+  0xC0, // ← Ligne 0 = HAUT
+  0xDA,
+  0x12,
+  0x81,
   0x7F,
-  // Set Page address, from 0 to 7
-  0x22,
-  // Page start
-  0x00,
-  // Page end
-  0x07,
+  0xD9,
+  0xF1,
+  0xDB,
+  0x40,
+  0xA4,
+  0xA6,
+  0xAF, // Display ON
 );
 
 const SHUTDOWN = Uint8Array.of(0x00, 0xAE);
@@ -81,11 +54,6 @@ function initFrame(page: number, column: number) {
   const frame = new Uint8Array(page * column + 1);
   frame[0] = ACTIVATION_BYTE;
   return frame.buffer;
-}
-
-export const enum Color {
-  BLACK = 0x00,
-  WHITE = 0xFF,
 }
 
 export class Ssd1306Device implements Disposable {
@@ -124,7 +92,7 @@ export class Ssd1306Device implements Disposable {
     this.#write(INIT.buffer);
     // Set horizontal mode
     // To have just one buffer
-    this.#write(HORIZONTAL_MODE.buffer);
+    // this.#write(HORIZONTAL_MODE.buffer);
   }
 
   writeFrame(): void {
@@ -140,7 +108,7 @@ export class Ssd1306Device implements Disposable {
 
   resetFrame(): void {
     new Uint8Array(this.#frame, 1)
-      .fill(Color.BLACK);
+      .fill(0);
     this.writeFrame();
   }
 
@@ -154,9 +122,9 @@ export class Ssd1306Device implements Disposable {
   }
 
   set(position: number, color: number): void {
-    if (color < Color.BLACK || color > Color.WHITE) {
+    if (color < 0 || color > 255) {
       throw new Error(
-        `Expected a color between ${Color.BLACK} and ${Color.WHITE}`,
+        `Expected a color between 0 and 255`,
       );
     }
     if (position < this.min || position >= this.max) {

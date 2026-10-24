@@ -1,4 +1,4 @@
-import { Color, Ssd1306Device } from "./ssd1306.ts";
+import { Ssd1306Device } from "./ssd1306.ts";
 import { Libc } from "./libc.ts";
 
 function getStatePath(message: string): string {
@@ -46,6 +46,14 @@ function help() {
   console.log("  set    Set a pixel.");
 }
 
+type Char = [number, number, number, number, number];
+
+function writeChar(page: Uint8Array, char: Char): void {
+  for (let i = 0; i < char.length; i++) {
+    page[i] = char[i];
+  }
+}
+
 function main(args: string[]): number {
   const [path] = args;
   if (args.length !== 1) {
@@ -76,6 +84,34 @@ function main(args: string[]): number {
   device.writeFrame();
   confirm("Damier impair");
 
+  device.resetFrame();
+  const [p1, p2, p3] = device.pages;
+  // 'A'
+  writeChar(p1, [
+    0b0111_1110,
+    0b0001_0001,
+    0b0001_0001,
+    0b0001_0001,
+    0b0111_1110,
+  ]);
+  // 'E'
+  writeChar(p2, [
+    0b01111111,
+    0b01001001,
+    0b01001001,
+    0b01001001,
+    0b01000001,
+  ]);
+  // 'L'
+  writeChar(p3, [
+    0b01111111,
+    0b01000000,
+    0b01000000,
+    0b01000000,
+    0b01000000,
+  ]);
+  device.writeFrame();
+
   help();
   mainloop:
   for (;;) {
@@ -93,14 +129,15 @@ function main(args: string[]): number {
       case "state": {
         const outfile = getStatePath("outfile:");
         const state = device.saveState();
-        Deno.writeFileSync(outfile, state);
+        Deno.writeTextFileSync(outfile, state.toHex());
         console.log(outfile);
         break;
       }
 
       case "load": {
         const infile = getStatePath("infile:");
-        device.loadState(Deno.readFileSync(infile));
+        const hex = Deno.readTextFileSync(infile);
+        device.loadState(Uint8Array.fromHex(hex));
         device.writeFrame();
         console.log(infile);
         break;
@@ -108,7 +145,7 @@ function main(args: string[]): number {
 
       case "set": {
         const position = getInt("position", device.min, device.max);
-        const color = getInt("color", Color.BLACK, Color.WHITE + 1);
+        const color = getInt("color", 0, 256);
         device.set(position, color);
         device.writeFrame();
         console.log(position, color);

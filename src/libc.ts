@@ -56,63 +56,36 @@ export class LibcError extends Error {
   }
 }
 
-export class LibcFile implements Disposable {
-  #libc: Libc;
-
-  #fd: number;
-
-  constructor(libc: Libc, fd: number) {
-    this.#libc = libc;
-    this.#fd = fd;
+function loadLibc(): LibcLib {
+  const { arch, os } = Deno.build;
+  if (os !== "linux") {
+    throw new Error("Required a linux os");
   }
-
-  write(buffer: Uint8Array): number {
-    return this.#libc.write(this.#fd, buffer);
+  const paths = [
+    "libc.so.6",
+    `/lib/${arch}-linux-gnu/libc.so.6`,
+    `/usr/lib/${arch}-linux-gnu/libc.so.6`,
+    "/lib64/libc.so.6",
+    "/usr/lib64/libc.so.6",
+  ];
+  for (const p of paths) {
+    try {
+      return Deno.dlopen(p, LIBC_SYMBOLS);
+    } catch (error) {
+      if (error instanceof Deno.errors.NotFound) {
+        continue;
+      }
+      throw error;
+    }
   }
-
-  ioctl(op: bigint, option?: bigint): number {
-    return this.#libc.ioctl(this.#fd, op, option);
-  }
-
-  close() {
-    this.#libc.close(this.#fd);
-  }
-
-  [Symbol.dispose](): void {
-    this.close();
-  }
+  throw new Error("Cannot find libc");
 }
 
 export class Libc implements Disposable {
   #libc: LibcLib;
 
-  static #loadLibc(): LibcLib {
-    const { arch, os } = Deno.build;
-    if (os !== "linux") {
-      throw new Error("Required a linux os");
-    }
-    const paths = [
-      "libc.so.6",
-      `/lib/${arch}-linux-gnu/libc.so.6`,
-      `/usr/lib/${arch}-linux-gnu/libc.so.6`,
-      "/lib64/libc.so.6",
-      "/usr/lib64/libc.so.6",
-    ];
-    for (const p of paths) {
-      try {
-        return Deno.dlopen(p, LIBC_SYMBOLS);
-      } catch (error) {
-        if (error instanceof Deno.errors.NotFound) {
-          continue;
-        }
-        throw error;
-      }
-    }
-    throw new Error("Cannot find libc");
-  }
-
   constructor() {
-    this.#libc = Libc.#loadLibc();
+    this.#libc = loadLibc();
   }
 
   /**
