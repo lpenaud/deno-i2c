@@ -25,3 +25,8 @@ sudo deno-i2c DEVICE
 ```bash
 sudo deno-i2c /dev/i2c-0
 ```
+
+## TODO
+
+Generate an alphabet from a `<canvas>` element.
+
