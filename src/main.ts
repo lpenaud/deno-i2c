@@ -1,12 +1,10 @@
-import { Ssd1306Device } from "./ssd1306.ts";
 import { Libc } from "./libc.ts";
-import { serve } from "./server.ts";
+import { HttpServer } from "./server.ts";
+import { Ssd1306Device } from "./ssd1306.ts";
 
-type Char = [number, number, number, number, number];
-
-function writeChar(page: Uint8Array, char: Char): void {
-  for (let i = 0; i < char.length; i++) {
-    page[i] = char[i];
+function trap(handler: (signal: Deno.Signal) => void, ...signals: Deno.Signal[]): void {
+  for (const sig of signals) {
+    Deno.addSignalListener(sig, () => handler(sig));
   }
 }
 
@@ -25,20 +23,16 @@ async function main(args: string[]): Promise<number> {
   using device = Ssd1306Device.fromPath(libc, path);
   device.init();
   device.resetFrame();
-  const [p1] = device.pages;
 
-  writeChar(p1, [
-    0b0111_1110,
-    0b0001_0001,
-    0b0001_0001,
-    0b0001_0001,
-    0b0111_1110,
-  ]);
-  device.writeFrame();
-  confirm("Should have a letter");
+  const server = new HttpServer({ device });
+  trap((signal) => {
+    console.error(`Catch ${signal}`);
+    console.log("Close server...");
+    server.shutdown();
+  }, "SIGTERM", "SIGINT", "SIGQUIT");
 
-  const server = Deno.serve(serve(device));
   await server.finished;
+
   return 0;
 }
 
