@@ -1,43 +1,5 @@
+import { AppFillRectOptions, AppFillTextOptions, AppOptions, IApp, MessageData } from "./types";
 import { notNullable } from "./utils";
-
-export interface AppOptions {
-  canvas: OffscreenCanvas;
-  port: MessagePort;
-}
-
-export type Color = string | CanvasGradient | CanvasPattern;
-
-export interface AppFillTextOptions {
-  text: string;
-  fillStyle: Color;
-  fontSize: number;
-  fontFamily: string;
-  baseline: CanvasTextBaseline;
-  x: number;
-  y: number;
-}
-
-export interface AppFillRectOptions {
-  fillStyle: Color;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}
-
-interface PublicMethods {
-  fillText: AppFillTextOptions;
-  fillRect: AppFillRectOptions;
-}
-
-interface DictPublicMethods<M extends keyof PublicMethods> {
-  method: M;
-  options: PublicMethods[M];
-}
-
-export type MessageData =
-  | DictPublicMethods<"fillRect">
-  | DictPublicMethods<"fillText">;
 
 function imgDateToBuffer(
   { data, width, height }: ImageData,
@@ -61,7 +23,7 @@ function imgDateToBuffer(
   return buffer;
 }
 
-export class App {
+export class App implements IApp {
   #canvas: OffscreenCanvas;
 
   #context: OffscreenCanvasRenderingContext2D;
@@ -81,19 +43,19 @@ export class App {
   fillText(
     { fillStyle, fontSize, fontFamily, baseline, text, x, y }:
       AppFillTextOptions,
-  ) {
+  ): void {
     this.#context.fillStyle = fillStyle;
     this.#context.font = `${fontSize}px ${fontFamily}`;
     this.#context.textBaseline = baseline;
     this.#context.fillText(text, x, y);
   }
 
-  fillRect({ fillStyle, height, width, x, y }: AppFillRectOptions) {
+  fillRect({ fillStyle, height, width, x, y }: AppFillRectOptions): void {
     this.#context.fillStyle = fillStyle;
     this.#context.fillRect(x, y, width, height);
   }
 
-  async send() {
+  async send(): Promise<void> {
     const img = this.#context.getImageData(
       0,
       0,
@@ -111,25 +73,25 @@ export class App {
       console.error("Response ko", await response.text());
     }
   }
-
+ 
   #initPort(): void {
     this.#port.onmessage = (ev: MessageEvent<MessageData>) => {
-      const { method, options } = ev.data;
+      const { method, args } = ev.data;
       if (this[method] === undefined) {
         console.warn("Invalid method name", method);
         return;
       }
-      this.#handleMethod(method, options);
+      this.#handleMethod(method, args);
     };
     this.#port.onmessageerror = (ev) => {
       console.error(ev.type, ev);
     };
   }
 
-  #handleMethod<M extends keyof PublicMethods>(
+  #handleMethod<M extends keyof IApp>(
     method: M,
-    options: PublicMethods[M],
+    args: Parameters<IApp[M]>,
   ): void {
-    (this[method] as (options: PublicMethods[M]) => void)(options);
+    (this[method] as (...args: Parameters<IApp[M]>) => ReturnType<IApp[M]>)(...args);
   }
 }

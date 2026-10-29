@@ -1,14 +1,14 @@
-import type { App } from "./app";
 import { createForm } from "./form";
+import { IApp } from "./types";
 
-function initApp(canvas: OffscreenCanvas): App {
+function initApp(canvas: OffscreenCanvas): IApp {
   const worker = new Worker(new URL("worker.js", window.location.href), {
     type: "module",
   });
   const { port1, port2 } = new MessageChannel();
   worker.postMessage({ canvas, port: port1 }, [canvas, port1]);
   // TODO: Return
-  return new Proxy({} as App, {
+  return new Proxy({} as IApp, {
     get: (_target, name) => {
       if (typeof name === "symbol") {
         throw new Error(`Invalid symbol ${name.toString()}`);
@@ -16,8 +16,8 @@ function initApp(canvas: OffscreenCanvas): App {
       if (name !== "fillText" && name !== "fillRect" && name !== "send") {
         throw new Error(`Invalid method ${name}`);
       }
-      return (options: unknown) => {
-        port2.postMessage({ method: name, options });
+      return (...args: unknown[]) => {
+        port2.postMessage({ method: name, args });
       };
     },
   });
