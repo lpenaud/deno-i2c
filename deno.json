@@ -1,7 +1,7 @@
 {
   "tasks": {
     "compile": "deno compile --allow-net --allow-read --allow-write --allow-ffi --target aarch64-unknown-linux-gnu --output dist/deno-i2c src/main.ts",
-    "front": "deno bundle --platform browser --output dist/main.js --sourcemap front/main.ts",
+    "front": "deno bundle --platform browser --outdir dist/ --sourcemap front/main.ts front/worker.ts",
     "clean": "rm -rfv dist/*"
   },
   "imports": {

@@ -1,23 +1,26 @@
+import type { App } from "./app";
 import { createForm } from "./form";
 
-function imgDateToBuffer({ data, width, height }: ImageData): Uint8Array<ArrayBuffer> {
-  const buffer = new Uint8Array(1024);
-
-  for (let y = 0; y < height; y++) {
-    const page = y >> 3;
-    const bit = y & 7;
-
-    for (let x = 0; x < width; x++) {
-      const src = (y * width + x) * 4;
-      const dst = page * 128 + x;
-
-      if (data[src] < 128) {
-        buffer[dst] |= 1 << bit;
+function initApp(canvas: OffscreenCanvas): App {
+  const worker = new Worker(new URL("worker.js", window.location.href), {
+    type: "module",
+  });
+  const { port1, port2 } = new MessageChannel();
+  worker.postMessage({ canvas, port: port1 }, [canvas, port1]);
+  // TODO: Return
+  return new Proxy({} as App, {
+    get: (_target, name) => {
+      if (typeof name === "symbol") {
+        throw new Error(`Invalid symbol ${name.toString()}`);
       }
-    }
-  }
-  
-  return buffer;
+      if (name !== "fillText" && name !== "fillRect" && name !== "send") {
+        throw new Error(`Invalid method ${name}`);
+      }
+      return (options: unknown) => {
+        port2.postMessage({ method: name, options });
+      };
+    },
+  });
 }
 
 (() => {
@@ -25,17 +28,25 @@ function imgDateToBuffer({ data, width, height }: ImageData): Uint8Array<ArrayBu
   const canvas = document.createElement("canvas");
   canvas.width = 128;
   canvas.height = 64;
-  const context = canvas.getContext("2d")!;
-  
-  const setText = () => {
-    context.fillStyle = "white";
-    context.fillRect(0, 0, canvas.width, canvas.height);
-    // context.clearRect(0, 0, canvas.width, canvas.height);
+  const app = initApp(canvas.transferControlToOffscreen());
 
-    context.fillStyle = "black";
-    context.font = `${fontSize.valueAsNumber}px ${fontFamily.value}`;
-    context.textBaseline = "top";
-    context.fillText(text.value, 0, 0);
+  const setText = () => {
+    app.fillRect({
+      fillStyle: "white",
+      height: canvas.height,
+      width: canvas.width,
+      x: 0,
+      y: 0,
+    });
+    app.fillText({
+      baseline: "top",
+      fillStyle: "black",
+      fontFamily: fontFamily.value,
+      fontSize: fontSize.valueAsNumber,
+      text: text.value,
+      x: 0,
+      y: 0,
+    });
   };
 
   fontFamily.addEventListener("input", () => {
@@ -50,25 +61,8 @@ function imgDateToBuffer({ data, width, height }: ImageData): Uint8Array<ArrayBu
     setText();
   });
 
-  const ws = new WebSocket("/");
-
-  ws.addEventListener("open", () => {
-    console.log("Ws open");
-    form.addEventListener("submit", () => {
-      const img = context.getImageData(0, 0, canvas.width, canvas.height, {
-        colorSpace: "srgb",
-      });
-      console.log(img.data)
-      const buffer = imgDateToBuffer(img);
-      console.log(buffer);
-      ws.send(buffer);
-    });
-  });
-  ws.addEventListener("close", () => {
-    console.log("Ws close");
-  });
-  ws.addEventListener("error", (ev) => {
-    console.error("Ws error", ev);
+  form.addEventListener("submit", () => {
+    app.send();
   });
 
   document.body.appendChild(form);
