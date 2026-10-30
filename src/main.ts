@@ -2,7 +2,10 @@ import { Libc } from "./libc.ts";
 import { HttpServer } from "./server.ts";
 import { Ssd1306Device } from "./ssd1306.ts";
 
-function trap(handler: (signal: Deno.Signal) => void, ...signals: Deno.Signal[]): void {
+function trap(
+  handler: (signal: Deno.Signal) => void,
+  ...signals: Deno.Signal[]
+): void {
   for (const sig of signals) {
     Deno.addSignalListener(sig, () => handler(sig));
   }
@@ -25,11 +28,16 @@ async function main(args: string[]): Promise<number> {
   device.resetFrame();
 
   const server = new HttpServer({ device });
-  trap((signal) => {
-    console.error(`Catch ${signal}`);
-    console.log("Close server...");
-    server.shutdown();
-  }, "SIGTERM", "SIGINT", "SIGQUIT");
+  trap(
+    (signal) => {
+      console.error(`Catch ${signal}`);
+      console.log("Close server...");
+      server.shutdown();
+    },
+    "SIGTERM",
+    "SIGINT",
+    "SIGQUIT",
+  );
 
   await server.finished;
 
