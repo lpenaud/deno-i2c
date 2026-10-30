@@ -1,5 +1,9 @@
-import { AppFillRectOptions, AppFillTextOptions, AppOptions, IApp, MessageData } from "./types";
-import { notNullable } from "./utils";
+import {
+  AppFillRectOptions,
+  AppFillTextOptions,
+  OffscreenDisplay,
+} from "../common/types";
+import { notNullable } from "../common/utils";
 
 function imgDateToBuffer(
   { data, width, height }: ImageData,
@@ -23,21 +27,21 @@ function imgDateToBuffer(
   return buffer;
 }
 
-export class App implements IApp {
+export interface DefaultOffscreenDisplayOptions {
+  canvas: OffscreenCanvas;
+}
+
+export class DefaultOffscreenDisplay implements OffscreenDisplay {
   #canvas: OffscreenCanvas;
 
   #context: OffscreenCanvasRenderingContext2D;
 
-  #port: MessagePort;
-
-  constructor({ canvas, port }: AppOptions) {
+  constructor({ canvas }: DefaultOffscreenDisplayOptions) {
     this.#canvas = canvas;
     this.#context = notNullable(
       canvas.getContext("2d"),
       "Cannot get 2D context from canvas",
     );
-    this.#port = port;
-    this.#initPort();
   }
 
   fillText(
@@ -72,26 +76,5 @@ export class App implements IApp {
     if (!response.ok) {
       console.error("Response ko", await response.text());
     }
-  }
- 
-  #initPort(): void {
-    this.#port.onmessage = (ev: MessageEvent<MessageData>) => {
-      const { method, args } = ev.data;
-      if (this[method] === undefined) {
-        console.warn("Invalid method name", method);
-        return;
-      }
-      this.#handleMethod(method, args);
-    };
-    this.#port.onmessageerror = (ev) => {
-      console.error(ev.type, ev);
-    };
-  }
-
-  #handleMethod<M extends keyof IApp>(
-    method: M,
-    args: Parameters<IApp[M]>,
-  ): void {
-    (this[method] as (...args: Parameters<IApp[M]>) => ReturnType<IApp[M]>)(...args);
   }
 }

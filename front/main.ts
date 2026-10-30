@@ -1,23 +1,52 @@
+import { RemoteOffscreenDisplay } from "./common/types";
 import { createForm } from "./form";
-import { IApp } from "./types";
 
-function initApp(canvas: OffscreenCanvas): IApp {
-  const worker = new Worker(new URL("worker.js", window.location.href), {
-    type: "module",
-  });
+function initWorker(canvas: OffscreenCanvas) {
+  const worker = new Worker(
+    new URL("workers/worker.js", window.location.href),
+    {
+      type: "module",
+    },
+  );
   const { port1, port2 } = new MessageChannel();
   worker.postMessage({ canvas, port: port1 }, [canvas, port1]);
-  // TODO: Return
-  return new Proxy({} as IApp, {
+  return {
+    worker,
+    port: port2,
+  };
+}
+
+function initDisplay(port: MessagePort): RemoteOffscreenDisplay {
+  const allowed = new Set<keyof RemoteOffscreenDisplay>([
+    "fillRect",
+    "fillText",
+    "send",
+  ]);
+  // Tant que `onmessage` n'a pas de valeur
+  // alors l'appel à la méthode `start` est obligatoire
+  // si on veut **écouter** des messages
+  port.start();
+  return new Proxy({} as RemoteOffscreenDisplay, {
     get: (_target, name) => {
       if (typeof name === "symbol") {
         throw new Error(`Invalid symbol ${name.toString()}`);
       }
-      if (name !== "fillText" && name !== "fillRect" && name !== "send") {
+      if (!allowed.has(name as keyof RemoteOffscreenDisplay)) {
         throw new Error(`Invalid method ${name}`);
       }
       return (...args: unknown[]) => {
-        port2.postMessage({ method: name, args });
+        const { port1, port2 } = new MessageChannel();
+        port.postMessage({ port: port1, method: name, args }, [port1]);
+        return new Promise((resolve, reject) => {
+          port2.onmessage = (
+            ev: MessageEvent<{ result?: unknown; error?: unknown }>,
+          ) => {
+            const { error, result } = ev.data;
+            // Laisse le ramasse-miettes faire son travail
+            port2.close();
+            return error ? reject(error) : resolve(result);
+          };
+        });
       };
     },
   });
@@ -28,17 +57,18 @@ function initApp(canvas: OffscreenCanvas): IApp {
   const canvas = document.createElement("canvas");
   canvas.width = 128;
   canvas.height = 64;
-  const app = initApp(canvas.transferControlToOffscreen());
+  const { port } = initWorker(canvas.transferControlToOffscreen());
+  const app = initDisplay(port);
 
-  const setText = () => {
-    app.fillRect({
+  const setText = async () => {
+    await app.fillRect({
       fillStyle: "white",
       height: canvas.height,
       width: canvas.width,
       x: 0,
       y: 0,
     });
-    app.fillText({
+    await app.fillText({
       baseline: "top",
       fillStyle: "black",
       fontFamily: fontFamily.value,

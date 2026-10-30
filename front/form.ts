@@ -1,15 +1,20 @@
 function createFontSize(form: HTMLFormElement): HTMLInputElement {
   const label = document.createElement("label");
   label.textContent = "Font-size";
+  
   const input = document.createElement("input");
   input.type = "number";
   input.min = "8";
   input.max = "64";
   input.valueAsNumber = 14;
   input.name = "font-size";
+  
+  const div = document.createElement("div");
+  div.appendChild(label);
+  div.append(input);
 
-  form.appendChild(label);
-  form.appendChild(input);
+  form.appendChild(div);
+
   return input;
 }
 
@@ -19,6 +24,10 @@ function createText(form: HTMLFormElement): HTMLInputElement {
   const input = document.createElement("input");
   input.type = "text";
   input.name = "text";
+
+  const div = document.createElement("div");
+  div.appendChild(label);
+  div.appendChild(input);
 
   form.appendChild(label);
   form.appendChild(input);
@@ -46,7 +55,7 @@ const FONT_FAMILIES = Object.freeze([
   "ui-monospace",
   "ui-rounded",
   "math",
-  "fangsong"
+  "fangsong",
 ]);
 
 function createSelectFontFamily(form: HTMLFormElement): HTMLSelectElement {
@@ -71,7 +80,7 @@ export function createForm() {
   const text = createText(form);
 
   const submit = createSubmit(form);
-  
+
   form.action = "#";
   form.addEventListener("submit", (ev) => ev.preventDefault());
   return {

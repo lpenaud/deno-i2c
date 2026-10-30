@@ -1,8 +1,3 @@
-export interface AppOptions {
-  canvas: OffscreenCanvas;
-  port: MessagePort;
-}
-
 export type Color = string | CanvasGradient | CanvasPattern;
 
 export interface AppFillTextOptions {
@@ -23,17 +18,24 @@ export interface AppFillRectOptions {
   height: number;
 }
 
-export interface IApp {
+export interface OffscreenDisplay {
   fillText(options: AppFillTextOptions): void;
   fillRect(options: AppFillRectOptions): void;
   send(): Promise<void>;
 }
 
-export interface DictPublicMethods<M extends keyof IApp> {
+export type RemoteOffscreenDisplay = {
+  [M in keyof OffscreenDisplay]: (
+    ...args: Parameters<OffscreenDisplay[M]>
+  ) => Promise<Awaited<ReturnType<OffscreenDisplay[M]>>>;
+};
+
+export interface DictPublicMethods<M extends keyof OffscreenDisplay> {
+  port: MessagePort;
   method: M;
-  args: Parameters<IApp[M]>;
+  args: Parameters<OffscreenDisplay[M]>;
 }
 
 export type MessageData = {
-  [M in keyof IApp]: DictPublicMethods<M>;
-}[keyof IApp];
+  [M in keyof OffscreenDisplay]: DictPublicMethods<M>;
+}[keyof OffscreenDisplay];
