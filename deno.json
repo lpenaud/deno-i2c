@@ -1,10 +1,23 @@
 {
   "tasks": {
-    "compile": "deno compile --allow-net --allow-read --allow-write --allow-ffi --target aarch64-unknown-linux-gnu --output dist/deno-i2c src/main.ts",
-    "front": "deno bundle --platform browser --outdir dist/ --sourcemap front/main.ts front/worker.ts",
-    "clean": "rm -rfv dist/*"
+    "front": "deno run --allow-read=front,dist --allow-write=dist --allow-run build.ts front",
+    "clean": "deno run --allow-read=dist --allow-write=dist build.ts clean",
+    "compile": "deno run --allow-read=src --allow-run build.ts compile",
+    "fix": "deno run --allow-run build.ts fix"
   },
   "imports": {
-    "@std/http": "jsr:@std/http@^1.1.4"
-  }
+    "@std/fs": "jsr:@std/fs@^1.0.24",
+    "@std/http": "jsr:@std/http@^1.1.4",
+    "@std/path": "jsr:@std/path@^1.1.6"
+  },
+  "lint": {
+    "exclude": [
+      ".vscode/",
+      "front/"
+    ]
+  },
+  "exclude": [
+    ".vscode/",
+    "dist/"
+  ]
 }
