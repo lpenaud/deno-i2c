@@ -36,6 +36,8 @@ function tryStat(path: string): Promise<Deno.FileInfo | null> {
   }
 }
 
+// Maybe useful later
+// deno-lint-ignore no-unused-vars
 async function newerThan(p1: string, p2: string): Promise<boolean> {
   const [s1, s2] = await Promise.all([
     Deno.stat(p1),
@@ -47,8 +49,10 @@ async function newerThan(p1: string, p2: string): Promise<boolean> {
     s1.mtime > s2.mtime;
 }
 
+type BuildTask = () => Promise<number>;
+
 async function sequential(
-  ...tasks: (() => Promise<number>)[]
+  ...tasks: BuildTask[]
 ): Promise<number> {
   for (const t of tasks) {
     const status = await t();
@@ -57,6 +61,11 @@ async function sequential(
     }
   }
   return 0;
+}
+
+async function parallel(...tasks: BuildTask[]): Promise<number> {
+  const codes = await Promise.all(tasks.map((t) => t()));
+  return codes.find((c) => c !== 0) || 0;
 }
 
 async function* walkTs(root: string | URL): AsyncIterableIterator<string> {
@@ -100,31 +109,18 @@ function check(args: string[]): Promise<number> {
 
 async function front(): Promise<number> {
   const infiles = await Array.fromAsync(walkTs(FRONT));
-  const results = await Promise.all(
-    infiles.map(async (path) => {
-      const { name, dir } = pathLib.parse(path);
-      const outfile = pathLib.format({
-        dir: pathLib.resolve(DIST, pathLib.relative(FRONT, dir)),
-        name,
-        ext: ".js",
-      });
-      return await newerThan(path, outfile) ? path : null;
-    }),
-  );
-  const changed = results.filter((p) => p !== null);
   return sequential(
-    () => fmt(["--check", ...changed]),
+    () => fmt(["--check", ...infiles]),
     () =>
       spawn(Deno.execPath(), {
         args: [
-          "transpile",
+          "bundle",
           "--outdir",
           DIST,
-          "--source-map",
-          "separate",
-          ...changed,
+          "--sourcemap=external",
+          pathLib.resolve(FRONT, "main.ts"),
+          pathLib.resolve(FRONT, "workers/worker.ts"),
         ],
-        cwd: FRONT,
       }),
   );
 }
@@ -191,9 +187,15 @@ function main([name]: string[]): Promise<number> {
     case "fix":
       return fix();
 
+    case "all":
+      return parallel(
+        () => front(),
+        () => compile(),
+      );
+
     default:
       console.error(
-        "Usage: %s TASK ...ARGS",
+        "Usage: %s COMMAND ...ARGS",
         import.meta.filename ?? import.meta.url,
       );
       return Promise.resolve(1);

@@ -3,7 +3,8 @@
     "front": "deno run --allow-read=front,dist --allow-write=dist --allow-run build.ts front",
     "clean": "deno run --allow-read=dist --allow-write=dist build.ts clean",
     "compile": "deno run --allow-read=src --allow-run build.ts compile",
-    "fix": "deno run --allow-run build.ts fix"
+    "fix": "deno run --allow-run build.ts fix",
+    "all": "deno run --allow-read=front,dist,src --allow-write=dist --allow-run build.ts all"
   },
   "imports": {
     "@std/fs": "jsr:@std/fs@^1.0.24",
