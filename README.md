@@ -29,4 +29,3 @@ sudo deno-i2c /dev/i2c-0
 ## TODO
 
 Generate an alphabet from a `<canvas>` element.
-

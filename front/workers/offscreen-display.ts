@@ -52,7 +52,7 @@ function imageLightning(
     for (let x = 0; x < width; x++) {
       const idx = y * width + x;
       const oldVal = luminance[idx];
-      
+
       // Seuilage binaire
       const newVal = oldVal < 128 ? 0 : 255;
       const error = oldVal - newVal;
@@ -68,14 +68,14 @@ function imageLightning(
         const nx = x + dx;
         const ny = y + dy;
         if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
-          luminance[nx + ny * width] += (error * factor);
+          luminance[nx + ny * width] += error * factor;
         }
       };
 
-      distributeError(1, 0, 7 / 16);     // Pixel à droite
-      distributeError(-1, 1, 3 / 16);    // Bas-gauche
-      distributeError(0, 1, 5 / 16);     // Bas
-      distributeError(1, 1, 1 / 16);     // Bas-droite
+      distributeError(1, 0, 7 / 16); // Pixel à droite
+      distributeError(-1, 1, 3 / 16); // Bas-gauche
+      distributeError(0, 1, 5 / 16); // Bas
+      distributeError(1, 1, 1 / 16); // Bas-droite
     }
   }
 

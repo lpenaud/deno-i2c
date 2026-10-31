@@ -109,7 +109,9 @@ class ComponentBuilder<K extends keyof HTMLElementTagNameMap> {
     return this.#field(labelElement, inputElement);
   }
 
-  fieldText({ label, name, readOnly, value }: FieldTextOptions): HTMLInputElement {
+  fieldText(
+    { label, name, readOnly, value }: FieldTextOptions,
+  ): HTMLInputElement {
     const labelElement = createLabel({
       name,
       text: label,
