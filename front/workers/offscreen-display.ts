@@ -132,7 +132,7 @@ export class DefaultOffscreenDisplay implements OffscreenDisplay {
     );
     const response = await fetch("/", {
       method: "PUT",
-      body: imageLightning(img),
+      body: imgDateToBuffer(img),
     });
     if (!response.ok) {
       console.error("Response ko", await response.text());
