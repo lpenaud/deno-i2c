@@ -68,6 +68,8 @@ async function parallel(...tasks: BuildTask[]): Promise<number> {
   return codes.find((c) => c !== 0) || 0;
 }
 
+// Maybe useful later
+// deno-lint-ignore no-unused-vars
 async function* walkTs(root: string | URL): AsyncIterableIterator<string> {
   const walk = fs.walk(root, {
     exts: [".ts"],
@@ -107,22 +109,17 @@ function check(args: string[]): Promise<number> {
   MAIN TASKS
 */
 
-async function front(): Promise<number> {
-  const infiles = await Array.fromAsync(walkTs(FRONT));
-  return sequential(
-    () => fmt(["--check", ...infiles]),
-    () =>
-      spawn(Deno.execPath(), {
-        args: [
-          "bundle",
-          "--outdir",
-          DIST,
-          "--sourcemap=external",
-          pathLib.resolve(FRONT, "main.ts"),
-          pathLib.resolve(FRONT, "workers/worker.ts"),
-        ],
-      }),
-  );
+function front(): Promise<number> {
+  return spawn(Deno.execPath(), {
+    args: [
+      "bundle",
+      "--outdir",
+      DIST,
+      "--sourcemap=external",
+      pathLib.resolve(FRONT, "main.ts"),
+      pathLib.resolve(FRONT, "workers/worker.ts"),
+    ],
+  });
 }
 
 async function clean(): Promise<number> {
@@ -144,36 +141,31 @@ async function clean(): Promise<number> {
   return 0;
 }
 
-async function compile(): Promise<number> {
-  const infiles = await Array.fromAsync(walkTs(SRC));
+function compile(): Promise<number> {
+  return spawn(Deno.execPath(), {
+    args: [
+      "compile",
+      "--allow-ffi",
+      "--allow-read",
+      "--allow-write",
+      "--allow-net",
+      "--target",
+      "aarch64-unknown-linux-gnu",
+      "--output",
+      pathLib.join(DIST, "deno-i2c"),
+      pathLib.join(SRC, "main.ts"),
+    ],
+  });
+}
+
+function fix(args: string[]): Promise<number> {
   return sequential(
-    () => check([...infiles]),
-    () =>
-      spawn(Deno.execPath(), {
-        args: [
-          "compile",
-          "--allow-ffi",
-          "--allow-read",
-          "--allow-write",
-          "--allow-net",
-          "--target",
-          "aarch64-unknown-linux-gnu",
-          "--output",
-          pathLib.join(DIST, "deno-i2c"),
-          pathLib.join(SRC, "main.ts"),
-        ],
-      }),
+    () => fmt([...args]),
+    () => lint(["--fix", ...args]),
   );
 }
 
-function fix(): Promise<number> {
-  return sequential(
-    () => fmt([]),
-    () => lint(["--fix"]),
-  );
-}
-
-function main([name]: string[]): Promise<number> {
+function main([name, ...args]: string[]): Promise<number> {
   switch (name) {
     case "front":
       return front();
@@ -185,7 +177,10 @@ function main([name]: string[]): Promise<number> {
       return compile();
 
     case "fix":
-      return fix();
+      return fix(args);
+
+    case "check":
+      return check(args);
 
     case "all":
       return parallel(
