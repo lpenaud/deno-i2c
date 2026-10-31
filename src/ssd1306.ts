@@ -29,19 +29,19 @@ const INIT = Uint8Array.of(
   0xD3,
   0x00, // ← IMPORTANT : Offset = 0 (sinon décalage vertical)
   0x40,
-  0x8D,
+  0x8D, // ← Charge Pump
   0x14,
   0x20,
   // Set horizontal mode
-  // To have just one buffer
+  // To send just one buffer
   0x00, // Horizontal mode
   0xA0, // ← Colonne 0 = GAUCHE
   0xC0, // ← Ligne 0 = HAUT
   0xDA,
   0x12,
-  0x81,
+  0x81, // Constraste
   0x7F,
-  0xD9,
+  0xD9, // Pré-charge
   0xF1,
   0xDB,
   0x40,

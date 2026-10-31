@@ -1,5 +1,6 @@
 import { serveDir, STATUS_TEXT, StatusCode } from "@std/http";
 import { type Ssd1306Device } from "./ssd1306.ts";
+import { toBytes } from "./utils.ts";
 
 function sendStatus(status: StatusCode): Response {
   const statusText = STATUS_TEXT[status];
@@ -24,7 +25,7 @@ export class HttpServer {
 
   constructor({ device }: ServerOptions) {
     this.#device = device;
-    this.#server = Deno.serve(this.#handler);
+    this.#server = Deno.serve(this.#logHandler);
   }
 
   async shutdown(): Promise<void> {
@@ -36,17 +37,45 @@ export class HttpServer {
     if (url.pathname !== "/") {
       return sendStatus(404);
     }
-    this.#device.frame.set(await req.bytes());
+    if (req.body === null) {
+      return sendStatus(400);
+    }
+    const frame = this.#device.frame;
+    const bytes = await toBytes(req.body, frame.byteLength);
+    frame.set(bytes);
     this.#device.writeFrame();
     return sendStatus(200);
   }
 
-  #handler: Deno.ServeHandler = (req) => {
+  #handler(req: Request) {
     if (req.method === "PUT") {
       return this.#onPut(req);
     }
     return serveDir(req, {
       showIndex: true,
+      quiet: true,
     });
+  }
+
+  #logHandler: Deno.ServeHandler<Deno.NetAddr> = async (req, info) => {
+    let res: Response;
+    try {
+      res = await this.#handler(req);
+    } catch (error) {
+      console.log(error);
+      res = sendStatus(500);
+    }
+    const url = new URL(req.url);
+    const { hostname } = info.remoteAddr;
+    info.completed.then(() => {
+      console.error(
+        `[${new Date().toLocaleString()}]`,
+        `${hostname}`,
+        `${req.method}`,
+        `${url.pathname}`,
+        `${res.status}`,
+      );
+    });
+    return res;
   };
 }
