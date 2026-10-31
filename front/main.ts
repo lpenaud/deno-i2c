@@ -1,5 +1,5 @@
 import { RemoteOffscreenDisplay } from "./common/types";
-import { createForm } from "./form";
+import { createForm } from "./components/form";
 
 function initWorker(canvas: OffscreenCanvas) {
   const worker = new Worker(
@@ -20,6 +20,7 @@ function initDisplay(port: MessagePort): RemoteOffscreenDisplay {
   const allowed = new Set<keyof RemoteOffscreenDisplay>([
     "fillRect",
     "fillText",
+    "drawImage",
     "send",
   ]);
   // Tant que `onmessage` n'a pas de valeur
@@ -52,11 +53,12 @@ function initDisplay(port: MessagePort): RemoteOffscreenDisplay {
   });
 }
 
-(() => {
-  const { fontSize, form, text, fontFamily } = createForm();
+await (async () => {
+  const { font, form, text, x, y, image } = createForm();
   const canvas = document.createElement("canvas");
   canvas.width = 128;
   canvas.height = 64;
+
   const { port } = initWorker(canvas.transferControlToOffscreen());
   const app = initDisplay(port);
 
@@ -71,29 +73,46 @@ function initDisplay(port: MessagePort): RemoteOffscreenDisplay {
     await app.fillText({
       baseline: "top",
       fillStyle: "black",
-      fontFamily: fontFamily.value,
-      fontSize: fontSize.valueAsNumber,
+      font: font.value,
       text: text.value,
-      x: 0,
-      y: 0,
+      x: x.valueAsNumber,
+      y: y.valueAsNumber,
     });
   };
 
-  fontFamily.addEventListener("input", () => {
+  font.addEventListener("input", () => {
     setText();
   });
 
-  fontSize.addEventListener("input", () => {
+  text.addEventListener("input", () => {
     setText();
   });
 
-  text.addEventListener("input", (_e) => {
+  x.addEventListener("input", () => {
     setText();
+  });
+  y.addEventListener("input", () => {
+    setText();
+  });
+
+  image.addEventListener("input", () => {
+    const file = image.files?.item(0);
+    if (!file) {
+      return;
+    }
+    app.drawImage({
+      dx: 0,
+      dy: 0,
+      src: file,
+    });
   });
 
   form.addEventListener("submit", () => {
     app.send();
   });
+
+  await setText();
+  await app.send();
 
   document.body.appendChild(form);
   document.body.appendChild(canvas);

@@ -3,8 +3,7 @@ export type Color = string | CanvasGradient | CanvasPattern;
 export interface AppFillTextOptions {
   text: string;
   fillStyle: Color;
-  fontSize: number;
-  fontFamily: string;
+  font: string;
   baseline: CanvasTextBaseline;
   x: number;
   y: number;
@@ -18,9 +17,16 @@ export interface AppFillRectOptions {
   height: number;
 }
 
+export interface DrawImageOptions {
+  src: Blob;
+  dx: number;
+  dy: number;
+}
+
 export interface OffscreenDisplay {
   fillText(options: AppFillTextOptions): void;
   fillRect(options: AppFillRectOptions): void;
+  drawImage(options: DrawImageOptions): Promise<void>;
   send(): Promise<void>;
 }
 
